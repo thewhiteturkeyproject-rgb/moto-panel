@@ -10,13 +10,27 @@ body{font-family:monospace;background:#111;color:#eee;margin:0;padding:16px}
 .bar div{height:100%;background:#4fc3f7}
 button{background:#333;color:#eee;border:1px solid #555;border-radius:8px;padding:8px 12px;margin:4px;font-family:monospace}
 button.on{background:#4fc3f7;color:#111}
+table{width:100%;border-collapse:collapse;margin-top:8px;font-size:.85em}
+td{padding:6px 4px;border-bottom:1px solid #2a2a2a}
+td.name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.num{text-align:right;color:#4fc3f7}
+.kill{padding:4px 10px;margin:0;background:#5a1e1e;border-color:#933}
+.lock{color:#666;text-align:center}
 </style></head><body>
 <h2>📱 Motorola One</h2>
 <div class="card">Batería<div class="big" id="bat">-</div><div id="temp"></div></div>
 <div class="card">RAM<div class="big" id="ram">-</div><div class="bar"><div id="ramBar"></div></div></div>
 <div class="card">CPU (MHz por núcleo)<div id="freqs"></div></div>
 <div class="card">Governor<div id="govs"></div></div>
+<div class="card">Procesos
+  <div>
+    <button id="sRam" class="on" onclick="setSort('ram')">RAM</button>
+    <button id="sCpu" onclick="setSort('cpu')">CPU</button>
+  </div>
+  <table><tbody id="procs"></tbody></table>
+</div>
 <script>
+let sort = 'ram';
 async function load(){
   const s = await (await fetch('/api/stats')).json();
   if (s.error) { console.error(s.error); return; }
@@ -29,6 +43,31 @@ async function load(){
   govs.innerHTML = s.govs.map(g =>
     `<button class="${g === s.gov ? 'on' : ''}" onclick="setGov('${g}')">${g}</button>`).join('');
 }
+async function loadProcs(){
+  const list = await (await fetch('/api/procs?sort=' + sort)).json();
+  if (list.error) { console.error(list.error); return; }
+  procs.innerHTML = list.map(p => `<tr>
+    <td class="name">${p.name}</td>
+    <td class="num">${p.ram} MB</td>
+    <td class="num">${p.cpu}%</td>
+    <td>${p.protected ? '<div class="lock">🔒</div>'
+      : `<button class="kill" onclick="kill(${p.pid},'${p.name}')">✕</button>`}</td>
+  </tr>`).join('');
+}
+function setSort(s){
+  sort = s;
+  sRam.className = s === 'ram' ? 'on' : '';
+  sCpu.className = s === 'cpu' ? 'on' : '';
+  loadProcs();
+}
+async function kill(pid, name){
+  if (!confirm('¿Cerrar ' + name + '?')) return;
+  const r = await (await fetch('/api/kill/' + pid, { method: 'POST' })).json();
+  if (r.error) alert(r.error);
+  loadProcs();
+}
 async function setGov(g){ await fetch('/api/gov/' + g, { method: 'POST' }); load(); }
-load(); setInterval(load, 2000);
+load(); loadProcs();
+setInterval(load, 2000);
+setInterval(loadProcs, 5000);
 </script></body></html>

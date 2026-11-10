@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel Moto One</title>
+<style>
+body{font-family:monospace;background:#111;color:#eee;margin:0;padding:16px}
+.card{background:#1e1e1e;border-radius:12px;padding:14px;margin-bottom:12px}
+.big{font-size:2em;color:#4fc3f7}
+.bar{height:8px;background:#333;border-radius:4px;overflow:hidden;margin-top:6px}
+.bar div{height:100%;background:#4fc3f7}
+button{background:#333;color:#eee;border:1px solid #555;border-radius:8px;padding:8px 12px;margin:4px;font-family:monospace}
+button.on{background:#4fc3f7;color:#111}
+</style></head><body>
+<h2>📱 Motorola One</h2>
+<div class="card">Batería<div class="big" id="bat">-</div><div id="temp"></div></div>
+<div class="card">RAM<div class="big" id="ram">-</div><div class="bar"><div id="ramBar"></div></div></div>
+<div class="card">CPU (MHz por núcleo)<div id="freqs"></div></div>
+<div class="card">Governor<div id="govs"></div></div>
+<script>
+async function load(){
+  const s = await (await fetch('/api/stats')).json();
+  if (s.error) { console.error(s.error); return; }
+  bat.textContent = s.bat + '%';
+  temp.textContent = '🌡 ' + s.temp + ' °C';
+  const used = s.ramTotal - s.ramFree;
+  ram.textContent = used + ' / ' + s.ramTotal + ' MB';
+  ramBar.style.width = (used / s.ramTotal * 100) + '%';
+  freqs.textContent = s.freqs.join('  ');
+  govs.innerHTML = s.govs.map(g =>
+    `<button class="${g === s.gov ? 'on' : ''}" onclick="setGov('${g}')">${g}</button>`).join('');
+}
+async function setGov(g){ await fetch('/api/gov/' + g, { method: 'POST' }); load(); }
+load(); setInterval(load, 2000);
+</script></body></html>
